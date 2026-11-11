@@ -1,0 +1,11 @@
+# The working tree is shared by Windows (Unity) and the Linux dev container.
+# Keep LF everywhere so neither side rewrites files; CRLF breaks *.sh in the container.
+* text=auto eol=lf
+
+# Unity binary assets
+*.png binary
+*.jpg binary
+*.psd binary
+*.fbx binary
+*.dll binary
+*.unitypackage binary

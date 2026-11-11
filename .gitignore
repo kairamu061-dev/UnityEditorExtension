@@ -1,0 +1,38 @@
+# Working area (see rules/structure.md)
+tmp/
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Unity generated
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+[Mm]emoryCaptures/
+*.csproj
+*.sln
+*.slnx
+*.suo
+*.user
+*.pidb
+*.booproj
+*.unityproj
+*.apk
+*.aab
+*.unitypackage
+crashlytics-buildid.txt
+sysinfo.txt
+
+# IDE
+.vs/
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
