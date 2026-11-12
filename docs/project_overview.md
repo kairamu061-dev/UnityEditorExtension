@@ -49,23 +49,22 @@ Unity エディタでの作業を効率化する拡張機能を、継続的に�
 Unity-MCP の接続条件:
 
 - サーバーのバイナリは `.devcontainer/setup.sh` がコンテナ作成時に取得する（`.unity-mcp/`、Git 管理外）。サーバーのバージョンは、プラグインが想定するバージョン（`McpServerManager.ServerVersion`）と一致させる。プラグインを上げるときは `setup.sh` の版と SHA256 も更新する
-- Unity 側の `Window > AI Game Developer` は、接続モード **Custom**・接続先 `http://localhost:8080`・通信方式 **stdio** にする。stdio 以外にすると、プラグインが Windows 側でも自前のサーバーを起動してしまう
+- Unity 側の `Window > AI Game Developer` は、接続モード **Custom**・接続先 `http://localhost:8080`・通信方式 **stdio** にする。**stdio 以外（`streamableHttp`）にすると、エディタがプラグインの Windows 用サーバー（`UnityProject/Library/mcp-server/win-x64/gamedev-mcp-server.exe`、プラグインが自分でダウンロードする）を起動して Windows の 8080 を先に取り、Unity はそちらにつながる。コンテナのサーバーには何も届かず、エージェントにはツールが出ない**（測った: ホストで `::1:8080` が ESTABLISHED、そのサーバーの親プロセスは `Unity.exe`。コンテナ側の `/proc/net/tcp` には :8080 宛ての接続がない。ダウンロードしたことは Unity コンソールの `Downloaded and unpacked GameDev-MCP-Server binary to: ...\Library\mcp-server\win-x64\gamedev-mcp-server.exe` で確認）
 - Claude Code はセッションごとにサーバーを起動するので、エディタを操作できるセッションは同時に 1 つだけ。Claude Code を起動してから Unity 側で Connect する
 
-Unity-MCP の接続状況（2026-11-12 時点）:
+Unity-MCP の接続状況（2026-11-12、stdio に切り替えたあと）:
 
 | 項目 | 状態 | 根拠 |
 |------|------|------|
-| Claude Code がサーバーを起動し、MCP の初期化が通る | **測った**: 通る | `server-log.txt` に `Client (claude-code 2.1.322) method 'initialize' ... completed` |
+| 接続している IDE | **測った**: VS Code ではなく Antigravity（`~/.antigravity-ide-server` 2.6.0）。コンテナ内に vscode-server はない | `ps` |
 | サーバーの待ち受けアドレス | **測った**: `127.0.0.1:8080` と `[::1]:8080` だけ | `/proc/net/tcp*` の LISTEN 行。ログにも `bind: loopback`。コンテナの IP（`172.17.0.2:8080`）への接続は拒否される |
-| コンテナ内から hub に届くか | **測った**: 届く | `curl -X POST http://localhost:8080/hub/mcp-server/negotiate` → HTTP 200 |
-| Unity プラグインからの接続 | **測った**: 来ていない | ログに `No engine plugin is connected`。`/proc/net/tcp` に :8080 宛ての ESTABLISHED がない |
-| プラグイン未接続のときのエージェント側 | **測った**: ai-game-developer のツールはセッションに 1 つも出てこない | サーバーは `Returning server-native tools only` と返したが、Claude Code のツール一覧には何も出ない |
-| 接続しているIDE | **測った**: VS Code ではなく Antigravity（`~/.antigravity-ide-server` 2.6.0）。コンテナ内に vscode-server はない | `ps`。この IDE が `forwardPorts: [8080]` をどう扱うかは測っていない |
-| サーバーログに hub への接続が記録されるか | **測った**: negotiate の POST は記録されない | 自分で送った negotiate（HTTP 200）がログに出ていない。だから、ログが空でも「何も届いていない」とは言えない。判断はソケットの表で行う |
-| Unity で Connect したあと | **測った**: 15:18:11（Connect の時刻は不明）の時点で、:8080 宛ての LISTEN 以外のソケットはない | `/proc/net/tcp*`。失敗した接続の TIME_WAIT は 1 分ほどで消えるので、それより前に接続を試みたかどうかはわからない |
-| IDE のポート転送で、`127.0.0.1` で待ち受けるサーバーに届くか | **推測**（未確定）: 届くはず。転送は、コンテナ内の IDE サーバーが localhost に接続して中継する方式のため | 決め方: コンテナで :8080 のソケットを 1 秒ごとに記録しながら、Windows で `curl.exe -X POST http://localhost:8080/hub/mcp-server/negotiate` を送る。200 が返り、同時にコンテナ側にソケットが現れれば「届く」と測れる。200 が返ってもソケットが現れなければ、Windows 側の別のプロセスが応答している。Windows の 8080 で誰が待ち受けているかは `Get-NetTCPConnection -LocalPort 8080 -State Listen` で調べる |
-| プラグインが後から接続したとき、起動済みのセッションにツールが出るか | **推測**（未確定） | Unity で Connect したあと、同じセッションでツール一覧を確かめれば決まる |
+| IDE のポート転送で、`127.0.0.1` で待ち受けるサーバーに届くか | **測った**: 届く | stdio に切り替えて Connect すると、15:24:12 UTC から `/proc/net/tcp` に `127.0.0.1:* ⇔ 127.0.0.1:8080` の ESTABLISHED が現れた。15:24:14 にサーバーログへ `plugin connection ... connected (role: editor)` と `Version handshake successful. Plugin: 1.11.1, API: 2.0.0, Environment: 6000.3.28f1` が出た |
+| プラグインが後から接続したとき、起動済みのセッションにツールが出るか | **測った**: 出る。Claude Code の再起動は要らない | 接続の直後にサーバーが `tools/list` に応答し、同じセッションに `mcp__ai-game-developer__*` のツールが出た。`unity-tool-list` と `rql-query` は実際に呼べた |
+| プラグイン未接続のときのエージェント側 | **測った**: ai-game-developer のツールは 1 つも出ない | サーバーログに `No engine plugin is connected` / `Returning server-native tools only` |
+| サーバーログに hub への接続が記録されるか | **測った**: negotiate の POST は記録されない。プラグインの接続は記録される | ログが空でも「何も届いていない」とは言えない。接続できたかどうかはソケットの表で判断する |
+| エディタに登録されているツール | **測った**: 21 個のうち、エージェントに見えるのは 13 個 | `unity-tool-list`。`script-read`・`script-update-or-create`・`script-delete`・`screenshot-*`（isolated 以外）などは `Visible: false` |
+| MCP 経由で EditMode テストを走らせられるか | **測った**: `tests-run` は呼べる。テストがまだないので `No tests found` が返る。**推測**: テストがあれば結果が返る | テスト用の asmdef とテストを 1 つ置いて `tests-run` を呼べば決まる |
+| 切り替え前のコンソールに残っているエラー | **測った**: 接続拒否（`SocketException`）の再試行と、00:13 JST の `Authorization failed`、`ObjectDisposedException`（R3）。**推測**: 認証エラーは Windows 側サーバーから返ったもの | コンテナのサーバーは `auth mode: none` で、15:24 より前にプラグインが接続した記録がないため |
 | `Assets/Plugins/NuGet/` に入る依存 DLL（45 個、18 MB） | **測った**: プラグインの導入時に作られ、すべて `isExplicitlyReferenced: 0`（全アセンブリから自動で参照される） | 各 `.meta`。上の「制約」にある、パッケージの依存の書き忘れを見逃す状態になる。コミットするか、扱いをどうするかは未決 |
 
 ### リポジトリ内の配置
