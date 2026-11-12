@@ -50,6 +50,7 @@ Unity-MCP の接続条件:
 
 - サーバーのバイナリは `.devcontainer/setup.sh` がコンテナ作成時に取得する（`.unity-mcp/`、Git 管理外）。サーバーのバージョンは、プラグインが想定するバージョン（`McpServerManager.ServerVersion`）と一致させる。プラグインを上げるときは `setup.sh` の版と SHA256 も更新する
 - Unity 側の `Window > AI Game Developer` は、接続モード **Custom**・接続先 `http://localhost:8080`・通信方式 **stdio** にする。**stdio 以外（`streamableHttp`）にすると、エディタがプラグインの Windows 用サーバー（`UnityProject/Library/mcp-server/win-x64/gamedev-mcp-server.exe`、プラグインが自分でダウンロードする）を起動して Windows の 8080 を先に取り、Unity はそちらにつながる。コンテナのサーバーには何も届かず、エージェントにはツールが出ない**（測った: ホストで `::1:8080` が ESTABLISHED、そのサーバーの親プロセスは `Unity.exe`。コンテナ側の `/proc/net/tcp` には :8080 宛ての接続がない。ダウンロードしたことは Unity コンソールの `Downloaded and unpacked GameDev-MCP-Server binary to: ...\Library\mcp-server\win-x64\gamedev-mcp-server.exe` で確認）
+- この接続の設定（`transportMethod` など）は `UnityProject/UserSettings/AI-Game-Developer-Config.json` に保存される。`UserSettings/` は Git 管理外なので、**新しく clone した環境や別のマシンでは既定の設定に戻る。最初に stdio に設定し直す**（**測った**: 切り替えたとき、Git で管理しているファイルは変わらなかった。設定はこのファイルにあった。同じファイルにトークンも入っているので、コミットしない）
 - Claude Code はセッションごとにサーバーを起動するので、エディタを操作できるセッションは同時に 1 つだけ。Claude Code を起動してから Unity 側で Connect する
 
 Unity-MCP の接続状況（2026-11-12、stdio に切り替えたあと）:
