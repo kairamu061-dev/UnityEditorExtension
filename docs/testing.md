@@ -77,4 +77,4 @@ MCP で回すテストは、エディタが開いていてつながっている�
 
 - **CI を作るか**。作るなら、案は 2 つある。どちらにするかは人が決める
   - 純粋ロジックだけを `noEngineReferences: true` の asmdef に分け、コンテナや GitHub Actions で `dotnet test` する。**推測**: Unity のライセンスは要らない。ただし、いまのコンテナには dotnet がない
-  - GameCI で Unity をバッチモードで動かし、EditMode テストを走らせる。Unity のライセンスを GitHub の secret に置く必要がある。Unity-MCP のプラグインは CI では、DLL がコミット済みで、`UNITY_MCP_READY` が ProjectSettings に入っている前提で動く（**測った**: プラグインのソース `NuGetDependencyResolver.cs` のコメントと `IsCi()` の分岐）。`Assets/Plugins/` を Git 管理外にしたこととぶつかる
+  - GameCI で Unity をバッチモードで動かし、EditMode テストを走らせる。Unity のライセンスを GitHub の secret に置く必要がある。Unity-MCP のプラグインは CI では、DLL がコミット済みで、`UNITY_MCP_READY` が ProjectSettings に入っている前提で動く（**測った**: プラグインのソース `NuGetDependencyResolver.cs` のコメントと `IsCi()` の分岐）。いまは DLL も印もコミットしているので、この前提を満たしている

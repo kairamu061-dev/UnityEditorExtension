@@ -48,7 +48,7 @@ Unity エディタでの作業を効率化する拡張機能を、継続的に�
 
 Unity-MCP の接続条件:
 
-- サーバーのバイナリは `.devcontainer/setup.sh` がコンテナ作成時に取得する（`.unity-mcp/`、Git 管理外）。サーバーのバージョンは、プラグインが想定するバージョン（`McpServerManager.ServerVersion`）と一致させる。プラグインを上げるときは `setup.sh` の版と SHA256 も更新する
+- サーバーのバイナリは `.devcontainer/setup.sh` がコンテナ作成時に取得する（`.unity-mcp/`、Git 管理外）。サーバーのバージョンは、プラグインが想定するバージョン（`McpServerManager.ServerVersion`）と一致させる。プラグインを上げるときは `setup.sh` の版と SHA256 も更新する。あわせて、プラグインが展開し直した `Assets/Plugins/NuGet/` の DLL と `.meta`、`ProjectSettings.asset` の `scriptingDefineSymbols`（`UNITY_MCP_DEPS_<N>` の番号が上がる）を、同じコミットに入れる。DLL と印のどちらかだけをコミットすると、clone した環境で印と DLL が食い違う
 - Unity 側の `Window > AI Game Developer` は、接続モード **Custom**・接続先 `http://localhost:8080`・通信方式 **stdio** にする。**stdio 以外（`streamableHttp`）にすると、エディタがプラグインの Windows 用サーバー（`UnityProject/Library/mcp-server/win-x64/gamedev-mcp-server.exe`、プラグインが自分でダウンロードする）を起動して Windows の 8080 を先に取り、Unity はそちらにつながる。コンテナのサーバーには何も届かず、エージェントにはツールが出ない**（測った: ホストで `::1:8080` が ESTABLISHED、そのサーバーの親プロセスは `Unity.exe`。コンテナ側の `/proc/net/tcp` には :8080 宛ての接続がない。ダウンロードしたことは Unity コンソールの `Downloaded and unpacked GameDev-MCP-Server binary to: ...\Library\mcp-server\win-x64\gamedev-mcp-server.exe` で確認）
 - この接続の設定（`transportMethod` など）は `UnityProject/UserSettings/AI-Game-Developer-Config.json` に保存される。`UserSettings/` は Git 管理外なので、**新しく clone した環境や別のマシンでは既定の設定に戻る。最初に stdio に設定し直す**（**測った**: 切り替えたとき、Git で管理しているファイルは変わらなかった。設定はこのファイルにあった。同じファイルにトークンも入っているので、コミットしない）
 - Claude Code はセッションごとにサーバーを起動するので、エディタを操作できるセッションは同時に 1 つだけ。Claude Code を起動してから Unity 側で Connect する
@@ -66,13 +66,13 @@ Unity-MCP の接続状況（2026-11-12、stdio に切り替えたあと）:
 | エディタに登録されているツール | **測った**: 21 個のうち、エージェントに見えるのは 13 個 | `unity-tool-list`。`script-read`・`script-update-or-create`・`script-delete`・`screenshot-*`（isolated 以外）などは `Visible: false` |
 | MCP 経由で EditMode テストを走らせられるか | **測った**: 走らせられる。成功と失敗が区別して返る | 測り方と、コンパイルのあとの接続の振る舞いは `docs/testing.md` に書いた |
 | 切り替え前のコンソールに残っているエラー | **測った**: 接続拒否（`SocketException`）の再試行と、00:13 JST の `Authorization failed`、`ObjectDisposedException`（R3）。**推測**: 認証エラーは Windows 側サーバーから返ったもの | コンテナのサーバーは `auth mode: none` で、15:24 より前にプラグインが接続した記録がないため |
-| `Assets/Plugins/NuGet/` に入る依存 DLL（45 個、18 MB） | **測った**（ソース）: プラグインの `NuGetConfig.Packages` が固定している 16 個と、その依存。`[InitializeOnLoad]` の `NuGetDependencyResolver` がドメインリロードのたびに不足を調べ、nuget.org から展開し直す（キャッシュは `Library/NuGetCache`）。プラグインの asmdef は `precompiledReferences` で名前を指定して参照している。DLL の `.meta` はすべて `isExplicitlyReferenced: 0`（全アセンブリから自動で参照される） | `Assets/Plugins/` は Git 管理外にした。**推測**: clone したばかりの環境でも、Unity で開けば自動で揃う（clone して開けば決まる）。自動参照の対策は「リポジトリ内の配置」の asmdef の規則で行う。**未決**: プラグインはリストアが済むと `ProjectSettings.asset` の `scriptingDefineSymbols` に `UNITY_MCP_READY;UNITY_MCP_DEPS_45` を書き込む（**測った**）。これをコミットして DLL をコミットしないと、clone したばかりの環境では印があるのに DLL がない状態になる。**推測**: プラグイン本体がコンパイルエラーになり、Safe Mode になるおそれがある |
+| `Assets/Plugins/NuGet/` に入る依存 DLL（45 個、18 MB） | **測った**（ソース）: プラグインの `NuGetConfig.Packages` が固定している 16 個と、その依存。`[InitializeOnLoad]` の `NuGetDependencyResolver` がドメインリロードのたびに不足を調べ、nuget.org から展開し直す。リストアが済むと `ProjectSettings.asset` の `scriptingDefineSymbols` に `UNITY_MCP_READY;UNITY_MCP_DEPS_45` を書き込む。CI（`IsCi()`）では、DLL と印がコミット済みである前提でリストアを飛ばす。DLL の `.meta` はすべて `isExplicitlyReferenced: 0`（全アセンブリから自動で参照される） | **DLL と印をどちらもコミットする**（2026-11-12 に決定）。プラグインの CI の前提に合わせるため。自動参照は「リポジトリ内の配置」の asmdef の規則で止める（**測った**: `docs/testing.md`） |
 
 ### リポジトリ内の配置
 
 ```
 UnityProject/                          # 開発用 Unity プロジェクト
-├── Assets/                            # 動作確認用のシーン・素材のみ。配布物は置かない
+├── Assets/                            # 動作確認用のシーン・素材のみ。配布物は置かない（例外: Plugins/NuGet/ は Unity-MCP の依存 DLL）
 ├── Packages/
 │   ├── manifest.json
 │   └── com.obelune.<機能名>/            # 埋め込みパッケージ = 配布単位（機能ごとに 1 つ）
