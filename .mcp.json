@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "ai-game-developer": {
+      "command": "/workspace/.unity-mcp/linux-x64/gamedev-mcp-server",
+      "args": ["--port", "8080", "--client-transport", "stdio"]
+    }
+  }
+}

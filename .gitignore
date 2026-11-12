@@ -36,3 +36,6 @@ sysinfo.txt
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Unity-MCP server binary (fetched by .devcontainer/setup.sh)
+.unity-mcp/

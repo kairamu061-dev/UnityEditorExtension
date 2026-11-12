@@ -28,6 +28,7 @@ Unity エディタでの作業を効率化する拡張機能を、継続的に�
 | UPM（Unity Package Manager）パッケージ | 配布単位 | git URL で必要な機能だけ導入できる |
 | Assembly Definition（asmdef） | パッケージごとのアセンブリ分離 | パッケージ間の依存を明示し、Editor 専用コードをビルドから除外する |
 | Dev Container（Debian + Claude Code） | エージェントの作業環境 | ホスト環境を汚さずにエージェントを動かす |
+| Unity-MCP（`com.ivanmurzak.unity.mcp` 1.11.1 + GameDev-MCP-Server 9.5.1） | コンテナ内のエージェントからエディタを操作する（コンソール・テスト実行・シーン操作など） | Unity 側から接続しに来る方式なので、ポート転送だけでコンテナの壁を越えられる。Unity 公式 CLI はエディタが localhost 接続しか受け付けず、コンテナからは届かない |
 
 ## 全体アーキテクチャ
 
@@ -36,11 +37,20 @@ Unity エディタでの作業を効率化する拡張機能を、継続的に�
 ```
 メインマシン（Windows）
  ├── Unity エディタ ……… UnityProject/ を開いて動作確認する
- └── Dev Container（Linux）
-       └── エージェント … ドキュメントとコードを書く（Unity は動かせない）
+ │     └── Unity-MCP プラグイン ──→ localhost:8080 ─┐ VS Code のポート転送
+ └── Dev Container（Linux, /workspace）              │
+       ├── gamedev-mcp-server（:8080） ←───────────┘
+       │     ↑ stdio（Claude Code が起動する。.mcp.json）
+       └── エージェント … ドキュメントとコードを書き、MCP 経由でエディタを操作する
 
   ※ 作業ツリーは両者で共有する（改行は .gitattributes で LF に統一）
 ```
+
+Unity-MCP の接続条件:
+
+- サーバーのバイナリは `.devcontainer/setup.sh` がコンテナ作成時に取得する（`.unity-mcp/`、Git 管理外）。サーバーのバージョンは、プラグインが想定するバージョン（`McpServerManager.ServerVersion`）と一致させる。プラグインを上げるときは `setup.sh` の版と SHA256 も更新する
+- Unity 側の `Window > AI Game Developer` は、接続モード **Custom**・接続先 `http://localhost:8080`・通信方式 **stdio** にする。stdio 以外にすると、プラグインが Windows 側でも自前のサーバーを起動してしまう
+- Claude Code はセッションごとにサーバーを起動するので、エディタを操作できるセッションは同時に 1 つだけ。Claude Code を起動してから Unity 側で Connect する
 
 ### リポジトリ内の配置
 
@@ -79,7 +89,7 @@ https://github.com/kairamu061-dev/UnityEditorExtension.git?path=UnityProject/Pac
 
 - エージェントの作業環境（Dev Container）には Unity がない。コンパイルと動作の確認はメインマシンの Unity エディタで行う（`rules/verification.md`）
 - `.meta` ファイルは Unity が作る。エージェントが新しいファイルを作ったら、Unity で一度読み込んで `.meta` ができてからコミットする。`.meta` が欠けたままのパッケージは、利用側でアセットの参照が壊れる
-- 開発用プロジェクトには、IDE 連携・Test Framework・ビルトインモジュール以外のパッケージを入れない。ほかのパッケージが入っていると、パッケージ側に依存を書き忘れても開発用プロジェクトではコンパイルが通ってしまい、利用側プロジェクトに入れたときに初めて壊れる。パッケージに依存が必要なときは、そのパッケージの `package.json` に書く
+- 開発用プロジェクトには、IDE 連携・Test Framework・ビルトインモジュール・開発用ツール（Unity-MCP）以外のパッケージを入れない。開発用ツールにはどの配布パッケージも依存しない。ほかのパッケージが入っていると、パッケージ側に依存を書き忘れても開発用プロジェクトではコンパイルが通ってしまい、利用側プロジェクトに入れたときに初めて壊れる。パッケージに依存が必要なときは、そのパッケージの `package.json` に書く
 - 利用者が他プロジェクトに入れても問題が出ないよう、各パッケージは `com.obelune.*` 以外の外部パッケージに依存しないことを原則とする
 
 ## UI デザイン方針

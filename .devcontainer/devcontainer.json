@@ -4,7 +4,17 @@
     "dockerfile": "Dockerfile"
   },
   "remoteUser": "claudeuser",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+  "workspaceFolder": "/workspace",
   "mounts": [
     "source=${localEnv:USERPROFILE}/.claude,target=/home/claudeuser/.claude,type=bind"
-  ]
+  ],
+  "postCreateCommand": "bash .devcontainer/setup.sh",
+  "forwardPorts": [8080],
+  "portsAttributes": {
+    "8080": {
+      "label": "Unity MCP Server",
+      "onAutoForward": "silent"
+    }
+  }
 }
