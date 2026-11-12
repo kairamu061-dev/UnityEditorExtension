@@ -39,3 +39,7 @@ desktop.ini
 
 # Unity-MCP server binary (fetched by .devcontainer/setup.sh)
 .unity-mcp/
+
+# Unity-MCP plugin's NuGet DLLs (restored from nuget.org on every domain reload)
+/UnityProject/Assets/Plugins/
+/UnityProject/Assets/Plugins.meta

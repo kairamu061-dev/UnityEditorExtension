@@ -65,7 +65,7 @@ Unity-MCP の接続状況（2026-11-12、stdio に切り替えたあと）:
 | エディタに登録されているツール | **測った**: 21 個のうち、エージェントに見えるのは 13 個 | `unity-tool-list`。`script-read`・`script-update-or-create`・`script-delete`・`screenshot-*`（isolated 以外）などは `Visible: false` |
 | MCP 経由で EditMode テストを走らせられるか | **測った**: `tests-run` は呼べる。テストがまだないので `No tests found` が返る。**推測**: テストがあれば結果が返る | テスト用の asmdef とテストを 1 つ置いて `tests-run` を呼べば決まる |
 | 切り替え前のコンソールに残っているエラー | **測った**: 接続拒否（`SocketException`）の再試行と、00:13 JST の `Authorization failed`、`ObjectDisposedException`（R3）。**推測**: 認証エラーは Windows 側サーバーから返ったもの | コンテナのサーバーは `auth mode: none` で、15:24 より前にプラグインが接続した記録がないため |
-| `Assets/Plugins/NuGet/` に入る依存 DLL（45 個、18 MB） | **測った**: プラグインの導入時に作られ、すべて `isExplicitlyReferenced: 0`（全アセンブリから自動で参照される） | 各 `.meta`。上の「制約」にある、パッケージの依存の書き忘れを見逃す状態になる。コミットするか、扱いをどうするかは未決 |
+| `Assets/Plugins/NuGet/` に入る依存 DLL（45 個、18 MB） | **測った**（ソース）: プラグインの `NuGetConfig.Packages` が固定している 16 個と、その依存。`[InitializeOnLoad]` の `NuGetDependencyResolver` がドメインリロードのたびに不足を調べ、nuget.org から展開し直す（キャッシュは `Library/NuGetCache`）。プラグインの asmdef は `precompiledReferences` で名前を指定して参照している。DLL の `.meta` はすべて `isExplicitlyReferenced: 0`（全アセンブリから自動で参照される） | `Assets/Plugins/` は Git 管理外にした。**推測**: clone したばかりの環境でも、Unity で開けば自動で揃う（clone して開けば決まる）。自動参照の対策は「リポジトリ内の配置」の asmdef の規則で行う |
 
 ### リポジトリ内の配置
 
@@ -89,6 +89,7 @@ UnityProject/                          # 開発用 Unity プロジェクト
 - パッケージは `UnityProject/Packages/` に**埋め込みパッケージ**として置く。Unity で開いたまま編集でき、そのまま配布物になる
 - 名前の規則: パッケージ名は `com.obelune.<機能名>`（小文字ケバブケース）、名前空間とアセンブリ名は `Obelune.<機能名>`（PascalCase）
 - パッケージ間に依存がある場合は `package.json` の `dependencies` に書く
+- 各パッケージの asmdef（テスト用も含む）は `"overrideReferences": true` にして、`precompiledReferences` は空にする（テスト用は Test Framework が要求する `nunit.framework.dll` だけにする）。これを外すと、開発用プロジェクトにある自動参照の DLL（Unity-MCP の `Assets/Plugins/NuGet/` など）をパッケージ側で使ってもコンパイルが通ってしまい、利用側プロジェクトで初めて壊れる
 
 ### 配布方法
 
