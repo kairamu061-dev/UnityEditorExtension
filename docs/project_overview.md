@@ -37,7 +37,7 @@ Unity エディタでの作業を効率化する拡張機能を、継続的に�
 ```
 メインマシン（Windows）
  ├── Unity エディタ ……… UnityProject/ を開いて動作確認する
- │     └── Unity-MCP プラグイン ──→ localhost:8080 ─┐ VS Code のポート転送
+ │     └── Unity-MCP プラグイン ──→ localhost:8080 ─┐ IDE のポート転送（devcontainer.json の forwardPorts）
  └── Dev Container（Linux, /workspace）              │
        ├── gamedev-mcp-server（:8080） ←───────────┘
        │     ↑ stdio（Claude Code が起動する。.mcp.json）
@@ -61,7 +61,10 @@ Unity-MCP の接続状況（2026-11-12 時点）:
 | コンテナ内から hub に届くか | **測った**: 届く | `curl -X POST http://localhost:8080/hub/mcp-server/negotiate` → HTTP 200 |
 | Unity プラグインからの接続 | **測った**: 来ていない | ログに `No engine plugin is connected`。`/proc/net/tcp` に :8080 宛ての ESTABLISHED がない |
 | プラグイン未接続のときのエージェント側 | **測った**: ai-game-developer のツールはセッションに 1 つも出てこない | サーバーは `Returning server-native tools only` と返したが、Claude Code のツール一覧には何も出ない |
-| VS Code のポート転送で、`127.0.0.1` で待ち受けるサーバーに届くか | **推測**（未確定）: 届くはず。VS Code の転送はコンテナ内から localhost に接続するため | Unity 側で Connect したときに、`/proc/net/tcp` に :8080 宛ての ESTABLISHED が出るか、ログに接続の記録が出るかで決まる。この記録の時点では Unity からの接続が来ておらず、どちらとも言えない |
+| 接続しているIDE | **測った**: VS Code ではなく Antigravity（`~/.antigravity-ide-server` 2.6.0）。コンテナ内に vscode-server はない | `ps`。この IDE が `forwardPorts: [8080]` をどう扱うかは測っていない |
+| サーバーログに hub への接続が記録されるか | **測った**: negotiate の POST は記録されない | 自分で送った negotiate（HTTP 200）がログに出ていない。だから、ログが空でも「何も届いていない」とは言えない。判断はソケットの表で行う |
+| Unity で Connect したあと | **測った**: 15:18:11（Connect の時刻は不明）の時点で、:8080 宛ての LISTEN 以外のソケットはない | `/proc/net/tcp*`。失敗した接続の TIME_WAIT は 1 分ほどで消えるので、それより前に接続を試みたかどうかはわからない |
+| IDE のポート転送で、`127.0.0.1` で待ち受けるサーバーに届くか | **推測**（未確定）: 届くはず。転送は、コンテナ内の IDE サーバーが localhost に接続して中継する方式のため | 決め方: コンテナで :8080 のソケットを 1 秒ごとに記録しながら、Windows で `curl.exe -X POST http://localhost:8080/hub/mcp-server/negotiate` を送る。200 が返り、同時にコンテナ側にソケットが現れれば「届く」と測れる。200 が返ってもソケットが現れなければ、Windows 側の別のプロセスが応答している。Windows の 8080 で誰が待ち受けているかは `Get-NetTCPConnection -LocalPort 8080 -State Listen` で調べる |
 | プラグインが後から接続したとき、起動済みのセッションにツールが出るか | **推測**（未確定） | Unity で Connect したあと、同じセッションでツール一覧を確かめれば決まる |
 | `Assets/Plugins/NuGet/` に入る依存 DLL（45 個、18 MB） | **測った**: プラグインの導入時に作られ、すべて `isExplicitlyReferenced: 0`（全アセンブリから自動で参照される） | 各 `.meta`。上の「制約」にある、パッケージの依存の書き忘れを見逃す状態になる。コミットするか、扱いをどうするかは未決 |
 
