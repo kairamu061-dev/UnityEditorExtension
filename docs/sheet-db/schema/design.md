@@ -17,6 +17,7 @@ public sealed class ColumnData
     public int[] Strings;            // StringTable の番号
     public bool[] Bools;
     public BitSet HasValue;          // 値なしのとき false
+    public int[] Display;            // 表示と検索に使う文字列の StringTable の番号。数値・真偽値の列も含め、全部の列で作る
 }
 
 public sealed class TableData
@@ -47,6 +48,7 @@ public readonly struct Problem
 
 - `Ref` の列は、読み込みの時点では参照先の主キーの型が分からない（別のブックにあるかもしれない）。値は `Ints`（数値のセル）と `Strings`（文字列のセル）の両方に「生の値」を入れ、index で参照先の型に合わせて解決する
 - `StringTable` はブックごと。ブックの読み込みを並列に行うため、ブックをまたいで共有しない
+- **表示と検索のための派生データ（`Display` と、StringTable の小文字の写し `Lowered`）は、`BookParser` が読み込みのときに作る。**読み込みは裏のスレッドで行うので、エディタを止めない。作ったものはキャッシュにも入る。Database ができたあとは、誰もこれを書き換えない（`../design.md` のスレッド。読み取り専用の約束を守るため）
 
 ## インターフェース
 

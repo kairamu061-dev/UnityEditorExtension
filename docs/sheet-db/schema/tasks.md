@@ -5,6 +5,8 @@
 - [ ] `TableData`・`ColumnData`・`StringTable`・`Problem` の型
 - [ ] 見出しの解釈と、読まないシート・列
 - [ ] 型の変換と問題の記録
+- [ ] 表示と検索の派生データ（`Display`・`Lowered`）
+- [ ] 解釈の版（`BookParser.RulesVersion`）。読み方を変える修正のたびに上げる（`../cache/design.md`）
 
 ## テストの線引き
 

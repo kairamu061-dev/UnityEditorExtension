@@ -5,6 +5,7 @@
 ## 実装タスク一覧
 
 - [ ] パッケージの骨組み: `UnityProject/Packages/com.obelune.sheet-db/`（`package.json`・`README.md`・`CHANGELOG.md`・4 つの asmdef。`design.md` のアセンブリの表）
+  - 骨組みができたらすぐ、空のテストを 1 つ置き、`tests | where fullName starts-with "Obelune.SheetDb"` で見つかるかを測る。`docs/testing.md` で測ったのは `Assets/` の asmdef だけで、埋め込みパッケージの中のテストが見つかるかはまだ測っていない。**推測**: 見つからなければ `manifest.json` に `"testables": ["com.obelune.sheet-db"]` が要る。結果を `docs/testing.md` に書く
 - [ ] [fixtures](./fixtures/tasks.md) の生成器
 - [ ] [xlsx-reader](./xlsx-reader/tasks.md)
 - [ ] [schema](./schema/tasks.md)

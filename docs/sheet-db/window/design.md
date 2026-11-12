@@ -12,7 +12,7 @@ SheetDbWindow（EditorWindow）
 SheetDbLoader.Changed → Database を受け取り、各ペインを作り直す
 ```
 
-- **列はテーブルを選ぶたびに作り直す。**`bindCell` は `ColumnData` の配列から値を読んで `Label.text` に入れるだけにし、文字列を毎回作らない（数値の書き方は一度作って覚えておく）
+- **列はテーブルを選ぶたびに作り直す。**`bindCell` は `ColumnData.Display[row]` の文字列を `Label.text` に入れるだけにし、文字列を作らない（数値の書き方は schema が読み込みのときに作ってある）
 - 行の一覧の `itemsSource` は「表示する行の番号」の配列。並べ替え・検索は、この配列を差し替えるだけで済む
 - 選択などの状態は `[SerializeField]` でウィンドウに持ち、ドメインリロードを越える
 
