@@ -52,6 +52,19 @@ Unity-MCP の接続条件:
 - Unity 側の `Window > AI Game Developer` は、接続モード **Custom**・接続先 `http://localhost:8080`・通信方式 **stdio** にする。stdio 以外にすると、プラグインが Windows 側でも自前のサーバーを起動してしまう
 - Claude Code はセッションごとにサーバーを起動するので、エディタを操作できるセッションは同時に 1 つだけ。Claude Code を起動してから Unity 側で Connect する
 
+Unity-MCP の接続状況（2026-11-12 時点）:
+
+| 項目 | 状態 | 根拠 |
+|------|------|------|
+| Claude Code がサーバーを起動し、MCP の初期化が通る | **測った**: 通る | `server-log.txt` に `Client (claude-code 2.1.322) method 'initialize' ... completed` |
+| サーバーの待ち受けアドレス | **測った**: `127.0.0.1:8080` と `[::1]:8080` だけ | `/proc/net/tcp*` の LISTEN 行。ログにも `bind: loopback`。コンテナの IP（`172.17.0.2:8080`）への接続は拒否される |
+| コンテナ内から hub に届くか | **測った**: 届く | `curl -X POST http://localhost:8080/hub/mcp-server/negotiate` → HTTP 200 |
+| Unity プラグインからの接続 | **測った**: 来ていない | ログに `No engine plugin is connected`。`/proc/net/tcp` に :8080 宛ての ESTABLISHED がない |
+| プラグイン未接続のときのエージェント側 | **測った**: ai-game-developer のツールはセッションに 1 つも出てこない | サーバーは `Returning server-native tools only` と返したが、Claude Code のツール一覧には何も出ない |
+| VS Code のポート転送で、`127.0.0.1` で待ち受けるサーバーに届くか | **推測**（未確定）: 届くはず。VS Code の転送はコンテナ内から localhost に接続するため | Unity 側で Connect したときに、`/proc/net/tcp` に :8080 宛ての ESTABLISHED が出るか、ログに接続の記録が出るかで決まる。この記録の時点では Unity からの接続が来ておらず、どちらとも言えない |
+| プラグインが後から接続したとき、起動済みのセッションにツールが出るか | **推測**（未確定） | Unity で Connect したあと、同じセッションでツール一覧を確かめれば決まる |
+| `Assets/Plugins/NuGet/` に入る依存 DLL（45 個、18 MB） | **測った**: プラグインの導入時に作られ、すべて `isExplicitlyReferenced: 0`（全アセンブリから自動で参照される） | 各 `.meta`。上の「制約」にある、パッケージの依存の書き忘れを見逃す状態になる。コミットするか、扱いをどうするかは未決 |
+
 ### リポジトリ内の配置
 
 ```
