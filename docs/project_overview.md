@@ -63,9 +63,9 @@ Unity-MCP の接続状況（2026-11-12、stdio に切り替えたあと）:
 | プラグイン未接続のときのエージェント側 | **測った**: ai-game-developer のツールは 1 つも出ない | サーバーログに `No engine plugin is connected` / `Returning server-native tools only` |
 | サーバーログに hub への接続が記録されるか | **測った**: negotiate の POST は記録されない。プラグインの接続は記録される | ログが空でも「何も届いていない」とは言えない。接続できたかどうかはソケットの表で判断する |
 | エディタに登録されているツール | **測った**: 21 個のうち、エージェントに見えるのは 13 個 | `unity-tool-list`。`script-read`・`script-update-or-create`・`script-delete`・`screenshot-*`（isolated 以外）などは `Visible: false` |
-| MCP 経由で EditMode テストを走らせられるか | **測った**: `tests-run` は呼べる。テストがまだないので `No tests found` が返る。**推測**: テストがあれば結果が返る | テスト用の asmdef とテストを 1 つ置いて `tests-run` を呼べば決まる |
+| MCP 経由で EditMode テストを走らせられるか | **測った**: 走らせられる。成功と失敗が区別して返る | 測り方と、コンパイルのあとの接続の振る舞いは `docs/testing.md` に書いた |
 | 切り替え前のコンソールに残っているエラー | **測った**: 接続拒否（`SocketException`）の再試行と、00:13 JST の `Authorization failed`、`ObjectDisposedException`（R3）。**推測**: 認証エラーは Windows 側サーバーから返ったもの | コンテナのサーバーは `auth mode: none` で、15:24 より前にプラグインが接続した記録がないため |
-| `Assets/Plugins/NuGet/` に入る依存 DLL（45 個、18 MB） | **測った**（ソース）: プラグインの `NuGetConfig.Packages` が固定している 16 個と、その依存。`[InitializeOnLoad]` の `NuGetDependencyResolver` がドメインリロードのたびに不足を調べ、nuget.org から展開し直す（キャッシュは `Library/NuGetCache`）。プラグインの asmdef は `precompiledReferences` で名前を指定して参照している。DLL の `.meta` はすべて `isExplicitlyReferenced: 0`（全アセンブリから自動で参照される） | `Assets/Plugins/` は Git 管理外にした。**推測**: clone したばかりの環境でも、Unity で開けば自動で揃う（clone して開けば決まる）。自動参照の対策は「リポジトリ内の配置」の asmdef の規則で行う |
+| `Assets/Plugins/NuGet/` に入る依存 DLL（45 個、18 MB） | **測った**（ソース）: プラグインの `NuGetConfig.Packages` が固定している 16 個と、その依存。`[InitializeOnLoad]` の `NuGetDependencyResolver` がドメインリロードのたびに不足を調べ、nuget.org から展開し直す（キャッシュは `Library/NuGetCache`）。プラグインの asmdef は `precompiledReferences` で名前を指定して参照している。DLL の `.meta` はすべて `isExplicitlyReferenced: 0`（全アセンブリから自動で参照される） | `Assets/Plugins/` は Git 管理外にした。**推測**: clone したばかりの環境でも、Unity で開けば自動で揃う（clone して開けば決まる）。自動参照の対策は「リポジトリ内の配置」の asmdef の規則で行う。**未決**: プラグインはリストアが済むと `ProjectSettings.asset` の `scriptingDefineSymbols` に `UNITY_MCP_READY;UNITY_MCP_DEPS_45` を書き込む（**測った**）。これをコミットして DLL をコミットしないと、clone したばかりの環境では印があるのに DLL がない状態になる。**推測**: プラグイン本体がコンパイルエラーになり、Safe Mode になるおそれがある |
 
 ### リポジトリ内の配置
 
