@@ -79,6 +79,7 @@ https://github.com/kairamu061-dev/UnityEditorExtension.git?path=UnityProject/Pac
 
 - エージェントの作業環境（Dev Container）には Unity がない。コンパイルと動作の確認はメインマシンの Unity エディタで行う（`rules/verification.md`）
 - `.meta` ファイルは Unity が作る。エージェントが新しいファイルを作ったら、Unity で一度読み込んで `.meta` ができてからコミットする。`.meta` が欠けたままのパッケージは、利用側でアセットの参照が壊れる
+- 開発用プロジェクトには、IDE 連携・Test Framework・ビルトインモジュール以外のパッケージを入れない。ほかのパッケージが入っていると、パッケージ側に依存を書き忘れても開発用プロジェクトではコンパイルが通ってしまい、利用側プロジェクトに入れたときに初めて壊れる。パッケージに依存が必要なときは、そのパッケージの `package.json` に書く
 - 利用者が他プロジェクトに入れても問題が出ないよう、各パッケージは `com.obelune.*` 以外の外部パッケージに依存しないことを原則とする
 
 ## UI デザイン方針
