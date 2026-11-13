@@ -18,3 +18,4 @@
   - [index](./data-viewer/index/overview.md)
   - [window](./data-viewer/window/overview.md)
   - [fixtures](./data-viewer/fixtures/overview.md)
+  - [annotations](./data-viewer/annotations/overview.md)

@@ -10,6 +10,7 @@
 | index | 主キーの索引・参照の解決・参照元の逆引き・検索・検査 | [design](./index/design.md) |
 | window | EditorWindow（UI Toolkit） | [design](./window/design.md) |
 | fixtures | 合成データの生成と、性能の目標の計測（開発用） | [design](./fixtures/design.md) |
+| annotations | データベースの外の「値 → 名前」の補助情報 | [design](./annotations/design.md) |
 
 ## 技術選定
 
