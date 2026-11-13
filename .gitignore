@@ -40,3 +40,7 @@ desktop.ini
 # Unity-MCP server binary (fetched by .devcontainer/setup.sh)
 .unity-mcp/
 
+
+# data-viewer のサンプルデータ（Assets/DataViewerSample/Editor の生成器が作る。大きいのでコミットしない）
+/UnityProject/Assets/DataViewerSample/Generated/
+/UnityProject/Assets/DataViewerSample/Generated.meta
