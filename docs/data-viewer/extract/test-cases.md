@@ -14,6 +14,7 @@
 | U-08 | 行の中の配列 | `int[]` と `List<string>`（null を含む） | 要素の数。null は値なし | [ ] |
 | U-09 | その他の型 | `Vector3` 相当の struct（フィールドなしの型）・null の class | `ToString()`・値なし | [ ] |
 | U-10 | 派生データ | 数値・enum・文字列の列 | Display が表示の文字列を指す。Lowered が小文字 | [ ] |
+| U-11 | グループ | ルート → グループ（テーブルを直接持たない）→ データクラス → `List`。ルートの直下のデータクラスも 1 つ | グループの中のテーブルにグループの名前（`CharacterGroup` → `Character`）。ルートの直下のテーブルはグループなし。`CharacterAbilityCollectionData` の名前は `CharacterAbility` | [ ] |
 
 ## インテグレーションテスト
 
