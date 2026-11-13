@@ -11,11 +11,10 @@
 ## 機能エリア
 
 <!-- 機能エリア・サブ項目が追加されるたびに追記する -->
-- [sheet-db](./sheet-db/overview.md)
-  - [xlsx-reader](./sheet-db/xlsx-reader/overview.md)
-  - [schema](./sheet-db/schema/overview.md)
-  - [index](./sheet-db/index/overview.md)
-  - [cache](./sheet-db/cache/overview.md)
-  - [loader](./sheet-db/loader/overview.md)
-  - [window](./sheet-db/window/overview.md)
-  - [fixtures](./sheet-db/fixtures/overview.md)
+- [data-viewer](./data-viewer/overview.md)
+  - [source](./data-viewer/source/overview.md)
+  - [extract](./data-viewer/extract/overview.md)
+  - [settings](./data-viewer/settings/overview.md)
+  - [index](./data-viewer/index/overview.md)
+  - [window](./data-viewer/window/overview.md)
+  - [fixtures](./data-viewer/fixtures/overview.md)
