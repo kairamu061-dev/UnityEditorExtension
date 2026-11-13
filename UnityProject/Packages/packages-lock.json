@@ -11,6 +11,12 @@
       },
       "url": "https://package.openupm.com"
     },
+    "com.obelune.data-viewer": {
+      "version": "file:com.obelune.data-viewer",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
+    },
     "com.unity.ext.nunit": {
       "version": "2.0.5",
       "depth": 1,
