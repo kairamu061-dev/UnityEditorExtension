@@ -2,12 +2,12 @@
     "sourceKind": "asset",
     "assetPath": "Assets/DataViewerSample/Generated/SampleData.asset",
     "primaryKeys": [
-        { "table": "abilityData.data", "column": "ability_id" },
-        { "table": "characterData.data", "column": "character_id" }
+        { "table": "ability.abilityData.data", "column": "ability_id" },
+        { "table": "character.characterData.data", "column": "character_id" }
     ],
     "references": [
-        { "table": "characterAbilityData.data", "column": "ability_id", "target": "abilityData.data", "hasNullValue": true, "nullValue": "0" },
-        { "table": "characterAbilityData.data", "column": "character_id", "target": "characterData.data", "hasNullValue": true, "nullValue": "0" }
+        { "table": "character.characterAbilityCollectionData.data", "column": "ability_id", "target": "ability.abilityData.data", "hasNullValue": true, "nullValue": "0" },
+        { "table": "character.characterAbilityCollectionData.data", "column": "character_id", "target": "character.characterData.data", "hasNullValue": true, "nullValue": "0" }
     ],
     "annotationSets": [
         { "name": "アビリティ名", "csv": "Assets/DataViewerSample/Generated/ability_names.csv" },
@@ -15,8 +15,8 @@
         { "name": "属性", "csv": "Assets/DataViewerSample/Generated/attribute_names.csv" }
     ],
     "annotationBindings": [
-        { "set": "アビリティ名", "table": "abilityData.data", "column": "" },
-        { "set": "キャラクター名", "table": "characterData.data", "column": "" },
-        { "set": "属性", "table": "characterData.data", "column": "attribute" }
+        { "set": "アビリティ名", "table": "ability.abilityData.data", "column": "" },
+        { "set": "キャラクター名", "table": "character.characterData.data", "column": "" },
+        { "set": "属性", "table": "character.characterData.data", "column": "attribute" }
     ]
 }

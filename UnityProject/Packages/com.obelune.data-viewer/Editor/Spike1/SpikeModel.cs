@@ -35,7 +35,7 @@ namespace Obelune.DataViewer.Editor.Spike1
 
             sw.Restart();
             var visited = new HashSet<object>(ReferenceEqualityComparer.Instance);
-            m.Discover(root, root.GetType(), "", 0, visited);
+            m.Discover(root, root.GetType(), "", 0, visited, null);
             m.ExtractMs = sw.Elapsed.TotalMilliseconds;
 
             sw.Restart();
@@ -72,7 +72,8 @@ namespace Obelune.DataViewer.Editor.Spike1
             => t != null && !t.IsPrimitive && !t.IsEnum && t != typeof(string) && !typeof(UnityEngine.Object).IsAssignableFrom(t)
                && SerializedFields(t).Any();
 
-        void Discover(object owner, Type ownerType, string prefix, int depth, HashSet<object> visited)
+        // group: ルートの直下のオブジェクトのうち、自分ではテーブルを持たないもの（データクラスをまとめる入れ物）。null = グループなし
+        void Discover(object owner, Type ownerType, string prefix, int depth, HashSet<object> visited, string group)
         {
             if (owner == null || depth > 4) return;
             if (!ownerType.IsValueType && !visited.Add(owner)) return;
@@ -88,20 +89,31 @@ namespace Obelune.DataViewer.Editor.Spike1
                 if (IsRowType(elem))
                 {
                     var name = tableFields.Count == 1 && depth > 0 ? TrimSuffix(ownerType.Name) : ownerType.Name + "." + f.Name;
-                    Tables.Add(Extract(path, name, elem, (IList)value));
+                    var table = Extract(path, name, elem, (IList)value);
+                    table.Group = group;
+                    Tables.Add(table);
                 }
                 else if (!f.FieldType.IsPrimitive && !f.FieldType.IsEnum && f.FieldType != typeof(string) && elem == null
                          && !typeof(UnityEngine.Object).IsAssignableFrom(f.FieldType))
                 {
-                    Discover(value, f.FieldType, path, depth + 1, visited);
+                    var childGroup = group;
+                    if (depth == 0 && !SerializedFields(f.FieldType).Any(ff => IsRowType(ElementType(ff.FieldType))))
+                        childGroup = TrimSuffix(f.FieldType.Name);
+                    Discover(value, f.FieldType, path, depth + 1, visited, childGroup);
                 }
             }
         }
 
+        // 末尾の Data・Collection・Table・Group を、なくなるまで繰り返し除く（CharacterAbilityCollectionData → CharacterAbility）
         static string TrimSuffix(string n)
         {
-            foreach (var s in new[] { "Data", "Collection", "Table" })
-                if (n.Length > s.Length && n.EndsWith(s, StringComparison.Ordinal)) return n.Substring(0, n.Length - s.Length);
+            var trimmed = true;
+            while (trimmed)
+            {
+                trimmed = false;
+                foreach (var s in new[] { "Data", "Collection", "Table", "Group" })
+                    if (n.Length > s.Length && n.EndsWith(s, StringComparison.Ordinal)) { n = n.Substring(0, n.Length - s.Length); trimmed = true; }
+            }
             return n;
         }
 
@@ -241,6 +253,7 @@ namespace Obelune.DataViewer.Editor.Spike1
     public sealed class SpikeTable
     {
         public string Path, Name;
+        public string Group;            // null = グループなし
         public int RowCount;
         public int PrimaryKey = -1;
         public int DanglingCount;

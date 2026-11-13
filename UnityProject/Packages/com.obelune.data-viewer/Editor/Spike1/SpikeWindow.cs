@@ -11,28 +11,12 @@ namespace Obelune.DataViewer.Editor.Spike1
     // 検証 1: 見え方を確かめるためのウィンドウ（docs/data-viewer/tasks.md）。検証が終わったら捨てる
     public sealed class SpikeWindow : EditorWindow
     {
-        public enum LabelMode
-        {
-            A_InCell,
-            B_SideColumn,
-            C_Tooltip,
-            D_DetailOnly,
-        }
-
-        static readonly string[] ModeTitles =
-        {
-            "A: セルの中に並べる",
-            "B: 隣に列を足す",
-            "C: ツールチップ",
-            "D: 行の詳細だけ",
-        };
-
         // ドメインリロードを越えて保つ状態
-        [SerializeField] LabelMode mode = LabelMode.A_InCell;
         [SerializeField] string tablePath;
         [SerializeField] int selectedRow = -1;
         [SerializeField] string search = "";
         [SerializeField] bool searchLabels = true;
+        [SerializeField] List<string> expandedGroups = new List<string>();   // 既定は全部畳む
 
         SpikeModel model;
         SpikeTable table;
@@ -40,15 +24,18 @@ namespace Obelune.DataViewer.Editor.Spike1
         readonly List<(string table, int row)> back = new List<(string, int)>();
         readonly List<(string table, int row)> forward = new List<(string, int)>();
 
-        ListView tableList;
+        ScrollView tableList;
+        readonly Dictionary<string, Label> tableLabels = new Dictionary<string, Label>();
+        readonly Dictionary<string, Foldout> groupFoldouts = new Dictionary<string, Foldout>();
         MultiColumnListView rowList;
         ScrollView detail;
         Label status;
         Label rowCount;
         bool suppressSelection;
+        bool detailWidthSet;
 
         static readonly Color DanglingColor = new Color(0.95f, 0.35f, 0.35f);
-        static readonly Color LabelColor = new Color(0.55f, 0.75f, 1f);
+        static readonly Color SelectedBackground = new Color(0.24f, 0.48f, 0.90f, 0.45f);
 
         [MenuItem("Tools/Obelune/Data Viewer/Spike1/Open Window")]
         public static void Open() => GetWindow<SpikeWindow>("Data Viewer (Spike1)");
@@ -58,46 +45,30 @@ namespace Obelune.DataViewer.Editor.Spike1
             var root = rootVisualElement;
 
             var toolbar = new Toolbar();
-            var reload = new ToolbarButton(Reload) { text = "再読込" };
-            toolbar.Add(reload);
-            var backButton = new ToolbarButton(GoBack) { text = "◀ 戻る" };
-            var forwardButton = new ToolbarButton(GoForward) { text = "進む ▶" };
-            toolbar.Add(backButton);
-            toolbar.Add(forwardButton);
-            var modeField = new PopupField<string>(ModeTitles.ToList(), (int)mode) { style = { minWidth = 170 } };
-            modeField.RegisterValueChangedCallback(e => { mode = (LabelMode)ModeTitles.ToList().IndexOf(e.newValue); BuildColumns(); ShowDetail(); });
-            toolbar.Add(new Label("名前の表示:") { style = { unityTextAlign = TextAnchor.MiddleLeft, marginLeft = 8 } });
-            toolbar.Add(modeField);
+            toolbar.Add(new ToolbarButton(Reload) { text = "再読込" });
+            toolbar.Add(new ToolbarButton(GoBack) { text = "◀ 戻る" });
+            toolbar.Add(new ToolbarButton(GoForward) { text = "進む ▶" });
             toolbar.Add(new ToolbarSpacer { flex = true });
-            var labelsToggle = new ToolbarToggle { text = "検索に名前を含める", value = searchLabels };
-            labelsToggle.RegisterValueChangedCallback(e => { searchLabels = e.newValue; ApplySearch(); });
-            toolbar.Add(labelsToggle);
-            var searchField = new ToolbarSearchField { value = search, style = { width = 220 } };
+            var searchField = new ToolbarSearchField { value = search, style = { width = 240 } };
             searchField.RegisterValueChangedCallback(e => { search = e.newValue ?? ""; ApplySearch(); });
             toolbar.Add(searchField);
+            // オンとオフが見て分かるように、チェックボックスにする
+            var labelsToggle = new Toggle { text = "名前も検索する", value = searchLabels, style = { marginLeft = 6, marginRight = 6, alignSelf = Align.Center } };
+            labelsToggle.RegisterValueChangedCallback(e => { searchLabels = e.newValue; ApplySearch(); });
+            toolbar.Add(labelsToggle);
             root.Add(toolbar);
 
             var outer = new TwoPaneSplitView(0, 220, TwoPaneSplitViewOrientation.Horizontal) { style = { flexGrow = 1 } };
-            var inner = new TwoPaneSplitView(1, 320, TwoPaneSplitViewOrientation.Horizontal);
+            var inner = new TwoPaneSplitView(1, 480, TwoPaneSplitViewOrientation.Horizontal);
+            // 行の詳細を、最初から行の一覧と半分ずつにする（あとは利用者が境目を動かせる）
+            inner.RegisterCallback<GeometryChangedEvent>(e =>
+            {
+                if (detailWidthSet || e.newRect.width < 100) return;
+                detailWidthSet = true;
+                inner.fixedPane.style.width = e.newRect.width / 2;
+            });
 
-            tableList = new ListView
-            {
-                fixedItemHeight = 20,
-                selectionType = SelectionType.Single,
-                makeItem = () => new Label { style = { unityTextAlign = TextAnchor.MiddleLeft, paddingLeft = 6 } },
-                bindItem = (e, i) =>
-                {
-                    var t = model.Tables[i];
-                    var l = (Label)e;
-                    l.text = t.DanglingCount > 0 ? $"{t.Name}  ({t.RowCount:N0})  ⚠ {t.DanglingCount}" : $"{t.Name}  ({t.RowCount:N0})";
-                    l.tooltip = t.Path;
-                },
-            };
-            tableList.selectionChanged += _ =>
-            {
-                if (suppressSelection || tableList.selectedIndex < 0) return;
-                SelectTable(model.Tables[tableList.selectedIndex].Path, -1, record: true);
-            };
+            tableList = new ScrollView { style = { paddingTop = 2 } };
 
             var center = new VisualElement { style = { flexGrow = 1 } };
             rowCount = new Label { style = { paddingLeft = 6, paddingTop = 2, paddingBottom = 2 } };
@@ -146,22 +117,72 @@ namespace Obelune.DataViewer.Editor.Spike1
             var sw = System.Diagnostics.Stopwatch.StartNew();
             model = SpikeModel.Load(settings);
             var total = sw.Elapsed.TotalMilliseconds;
-            status.text = $"アセットの読み込み {model.LoadAssetMs:F0} ms（読み込み済みなら 0） ・ 取り出し {model.ExtractMs:F0} ms ・ 索引と補助情報 {model.IndexMs:F0} ms ・ 合計 {total:F0} ms" +
+            status.text = $"アセットの読み込み {model.LoadAssetMs:F0} ms（読み込み済みなら 0） ・ 取り出し {model.ExtractMs:F0} ms ・ 索引と名前 {model.IndexMs:F0} ms ・ 合計 {total:F0} ms" +
                           $"（{model.Tables.Count} テーブル, {model.Tables.Sum(t => t.RowCount):N0} 行）" +
                           (model.Problems.Count > 0 ? $"   ⚠ 問題 {model.Problems.Count}" : "");
             status.tooltip = string.Join("\n", model.Problems.Take(30));
 
-            tableList.itemsSource = model.Tables;
-            tableList.Rebuild();
+            BuildTableList();
             var path = model.Find(tablePath) != null ? tablePath : model.Tables.FirstOrDefault()?.Path;
             if (path != null) SelectTable(path, selectedRow, record: false);
         }
 
+        // ---- テーブルの一覧（グループごとに畳める） ----
+
+        void BuildTableList()
+        {
+            tableList.Clear();
+            tableLabels.Clear();
+            groupFoldouts.Clear();
+
+            // グループのないテーブルを先に、グループは見つけた順に
+            foreach (var t in model.Tables.Where(t => t.Group == null))
+                tableList.Add(MakeTableItem(t, indent: 6));
+
+            foreach (var g in model.Tables.Where(t => t.Group != null).GroupBy(t => t.Group))
+            {
+                var name = g.Key;
+                var dangling = g.Sum(t => t.DanglingCount);
+                var fold = new Foldout
+                {
+                    text = dangling > 0 ? $"{name}  ⚠ {dangling}" : name,
+                    value = expandedGroups.Contains(name),
+                };
+                fold.RegisterValueChangedCallback(e =>
+                {
+                    if (e.target != fold) return;
+                    if (e.newValue) { if (!expandedGroups.Contains(name)) expandedGroups.Add(name); }
+                    else expandedGroups.Remove(name);
+                });
+                foreach (var t in g) fold.Add(MakeTableItem(t, indent: 0));
+                groupFoldouts[name] = fold;
+                tableList.Add(fold);
+            }
+        }
+
+        VisualElement MakeTableItem(SpikeTable t, int indent)
+        {
+            var l = new Label(t.DanglingCount > 0 ? $"{t.Name}  ({t.RowCount:N0})  ⚠ {t.DanglingCount}" : $"{t.Name}  ({t.RowCount:N0})")
+            {
+                tooltip = t.Path,
+                style = { unityTextAlign = TextAnchor.MiddleLeft, paddingLeft = indent, height = 20 },
+            };
+            l.RegisterCallback<ClickEvent>(_ => SelectTable(t.Path, -1, record: true));
+            tableLabels[t.Path] = l;
+            return l;
+        }
+
+        void HighlightTable()
+        {
+            foreach (var kv in tableLabels)
+                kv.Value.style.backgroundColor = kv.Key == tablePath ? new StyleColor(SelectedBackground) : new StyleColor(StyleKeyword.Null);
+        }
+
         // ---- 移動 ----
 
-        public void Reveal(string path, int row) => SelectTable(path, row, record: true);
+        public void Reveal(string path, int row) => SelectTable(path, row, record: true, expandGroup: true);
 
-        void SelectTable(string path, int row, bool record)
+        void SelectTable(string path, int row, bool record, bool expandGroup = false)
         {
             if (record && table != null && selectedRow >= 0) Record();
             var t = model.Find(path);
@@ -171,9 +192,10 @@ namespace Obelune.DataViewer.Editor.Spike1
             tablePath = path;
             selectedRow = row;
 
-            suppressSelection = true;
-            tableList.SetSelectionWithoutNotify(new[] { model.Tables.IndexOf(t) });
-            suppressSelection = false;
+            // 参照・戻る・進むで畳まれたグループのテーブルへ移ったときは、そのグループだけを開いて選択を見せる。
+            // 読み込み直後の選択では開かない（既定は全部畳む）
+            if (expandGroup && t.Group != null && groupFoldouts.TryGetValue(t.Group, out var fold) && !fold.value) fold.value = true;
+            HighlightTable();
 
             if (changed) BuildColumns();
             ApplySearch();
@@ -193,7 +215,7 @@ namespace Obelune.DataViewer.Editor.Spike1
             var p = back[back.Count - 1];
             back.RemoveAt(back.Count - 1);
             forward.Add((tablePath, selectedRow));
-            SelectTable(p.table, p.row, record: false);
+            SelectTable(p.table, p.row, record: false, expandGroup: true);
         }
 
         void GoForward()
@@ -202,10 +224,12 @@ namespace Obelune.DataViewer.Editor.Spike1
             var p = forward[forward.Count - 1];
             forward.RemoveAt(forward.Count - 1);
             back.Add((tablePath, selectedRow));
-            SelectTable(p.table, p.row, record: false);
+            SelectTable(p.table, p.row, record: false, expandGroup: true);
         }
 
         // ---- 行の一覧 ----
+
+        static string WithLabel(string value, string label) => $"{value}（{label}）";
 
         void BuildColumns()
         {
@@ -220,29 +244,11 @@ namespace Obelune.DataViewer.Editor.Spike1
                 {
                     name = col.Name,
                     title = (isKey ? "🔑 " : "") + col.Name + refName,
-                    width = mode == LabelMode.A_InCell && col.Annotation != null ? 200 : 110,
+                    width = col.Annotation != null ? 200 : 110,
                     resizable = true,
                     makeCell = () => new Label { style = { unityTextAlign = TextAnchor.MiddleLeft, paddingLeft = 4 } },
                     bindCell = (e, i) => BindCell((Label)e, col, items[i]),
                 });
-                if (mode == LabelMode.B_SideColumn && col.Annotation != null)
-                {
-                    rowList.columns.Add(new Column
-                    {
-                        name = col.Name + "#label",
-                        title = $"({col.AnnotationName})",
-                        width = 160,
-                        resizable = true,
-                        makeCell = () => new Label { style = { unityTextAlign = TextAnchor.MiddleLeft, paddingLeft = 4 } },
-                        bindCell = (e, i) =>
-                        {
-                            var l = (Label)e;
-                            l.text = col.TryGetLabel(items[i], out var label, out _) ? label : "";
-                            l.tooltip = "";
-                            l.style.color = LabelColor;
-                        },
-                    });
-                }
             }
             rowList.Rebuild();
         }
@@ -254,9 +260,8 @@ namespace Obelune.DataViewer.Editor.Spike1
             var hasLabel = col.TryGetLabel(row, out var label, out var note);
             var dangling = col.RefRow != null && col.RefRow[row] == -1;
 
-            l.text = mode == LabelMode.A_InCell && hasLabel ? $"{value}   {label}" : value;
-            l.tooltip = mode == LabelMode.C_Tooltip && hasLabel ? (string.IsNullOrEmpty(note) ? label : label + "\n" + note)
-                      : dangling ? "参照先が見つからない" : "";
+            l.text = hasLabel ? WithLabel(value, label) : value;
+            l.tooltip = dangling ? "参照先が見つからない" : hasLabel && !string.IsNullOrEmpty(note) ? note : "";
             l.style.color = dangling ? new StyleColor(DanglingColor) : new StyleColor(StyleKeyword.Null);
         }
 
@@ -286,7 +291,10 @@ namespace Obelune.DataViewer.Editor.Spike1
             }
             rowList.itemsSource = items;
             rowList.RefreshItems();
-            rowCount.text = q.Length == 0 ? $"{table.Name}（{table.Path}）  {table.RowCount:N0} 行" : $"{table.Name}（{table.Path}）  {table.RowCount:N0} 行中 {items.Count:N0} 行";
+            var title = table.Group != null ? $"{table.Group} / {table.Name}" : table.Name;
+            rowCount.text = q.Length == 0
+                ? $"{title}（{table.Path}）  {table.RowCount:N0} 行"
+                : $"{title}（{table.Path}）  {table.RowCount:N0} 行中 {items.Count:N0} 行（{(searchLabels ? "値と名前" : "値だけ")}を検索）";
 
             var index = selectedRow >= 0 ? items.IndexOf(selectedRow) : -1;
             suppressSelection = true;
@@ -315,10 +323,10 @@ namespace Obelune.DataViewer.Editor.Spike1
             foreach (var c in table.Columns)
             {
                 var line = new VisualElement { style = { flexDirection = FlexDirection.Row, marginBottom = 1 } };
-                line.Add(new Label(c.Name) { style = { width = 110, color = new Color(0.6f, 0.6f, 0.6f) } });
+                line.Add(new Label(c.Name) { style = { width = 120, color = new Color(0.6f, 0.6f, 0.6f) } });
                 var value = c.Display[selectedRow];
                 var hasLabel = c.TryGetLabel(selectedRow, out var label, out var note);
-                var text = hasLabel ? $"{value}（{label}）" : value;
+                var text = hasLabel ? WithLabel(value, label) : value;
                 if (c.RefRow != null && c.RefRow[selectedRow] >= 0)
                 {
                     var target = model.Tables[c.RefTarget];
@@ -348,7 +356,7 @@ namespace Obelune.DataViewer.Editor.Spike1
                 {
                     var src = s;
                     var desc = string.Join(", ", st.Columns.Where((_, k) => k != src.column).Select(c =>
-                        c.TryGetLabel(src.row, out var lb, out _) ? $"{c.Name}={c.Display[src.row]}（{lb}）" : $"{c.Name}={c.Display[src.row]}"));
+                        c.TryGetLabel(src.row, out var lb, out _) ? $"{c.Name}={WithLabel(c.Display[src.row], lb)}" : $"{c.Name}={c.Display[src.row]}"));
                     fold.Add(new Button(() => Reveal(st.Path, src.row)) { text = $"{src.row + 1} 行目: {desc}", style = { unityTextAlign = TextAnchor.MiddleLeft } });
                 }
                 if (g.Count() > 50) fold.Add(new Label($"…ほか {g.Count() - 50} 件"));

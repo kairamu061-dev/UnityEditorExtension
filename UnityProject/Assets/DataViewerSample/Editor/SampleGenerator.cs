@@ -46,7 +46,7 @@ namespace Obelune.DataViewer.Sample.Editor
             var c = ScriptableObject.CreateInstance<SampleDataContainer>();
 
             for (int i = 1; i <= Characters; i++)
-                c.characterData.data.Add(new CharacterData.Data
+                c.character.characterData.data.Add(new CharacterData.Data
                 {
                     character_id = i,
                     attribute = 1 + rng.Next(Attributes.Length),
@@ -57,7 +57,7 @@ namespace Obelune.DataViewer.Sample.Editor
                 });
 
             for (int i = 1; i <= Abilities; i++)
-                c.abilityData.data.Add(new AbilityData.Data
+                c.ability.abilityData.data.Add(new AbilityData.Data
                 {
                     ability_id = 1000 + i,
                     evaluator = rng.Next(20),
@@ -68,17 +68,17 @@ namespace Obelune.DataViewer.Sample.Editor
                 });
 
             for (int i = 0; i < CharacterAbilities; i++)
-                c.characterAbilityData.data.Add(new CharacterAbilityData.Data
+                c.character.characterAbilityCollectionData.data.Add(new CharacterAbilityCollectionData.Data
                 {
                     character_id = 1 + (i / 7) % Characters,
                     ability_id = 1001 + rng.Next(Abilities),
                     slot = i % 7 + 1,
                 });
             // 参照切れを 2 つ仕込む（見え方を確かめるため）
-            c.characterAbilityData.data[5] = new CharacterAbilityData.Data { character_id = 99999, ability_id = 1001, slot = 6 };
-            c.characterAbilityData.data[12] = new CharacterAbilityData.Data { character_id = 2, ability_id = 88888, slot = 6 };
+            c.character.characterAbilityCollectionData.data[5] = new CharacterAbilityCollectionData.Data { character_id = 99999, ability_id = 1001, slot = 6 };
+            c.character.characterAbilityCollectionData.data[12] = new CharacterAbilityCollectionData.Data { character_id = 2, ability_id = 88888, slot = 6 };
             // 「参照なし」の値（0）を 1 つ仕込む
-            c.characterAbilityData.data[20] = new CharacterAbilityData.Data { character_id = 3, ability_id = 0, slot = 7 };
+            c.character.characterAbilityCollectionData.data[20] = new CharacterAbilityCollectionData.Data { character_id = 3, ability_id = 0, slot = 7 };
 
             AssetDatabase.DeleteAsset(AssetPath);
             AssetDatabase.CreateAsset(c, AssetPath);

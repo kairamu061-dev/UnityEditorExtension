@@ -8,8 +8,21 @@ namespace Obelune.DataViewer.Sample
     // data-viewer のパッケージはこのアセンブリを参照しない。アセットとリフレクションだけで読む
     public class SampleDataContainer : ScriptableObject
     {
+        public CharacterGroup character = new CharacterGroup();
+        public AbilityGroup ability = new AbilityGroup();
+    }
+
+    // グループ: データの置き場と、ビューアでの表示の単位。参照はグループをまたいでよい
+    [Serializable]
+    public class CharacterGroup
+    {
         public CharacterData characterData = new CharacterData();
-        public CharacterAbilityData characterAbilityData = new CharacterAbilityData();
+        public CharacterAbilityCollectionData characterAbilityCollectionData = new CharacterAbilityCollectionData();
+    }
+
+    [Serializable]
+    public class AbilityGroup
+    {
         public AbilityData abilityData = new AbilityData();
     }
 
@@ -33,7 +46,7 @@ namespace Obelune.DataViewer.Sample
     }
 
     [Serializable]
-    public class CharacterAbilityData
+    public class CharacterAbilityCollectionData
     {
         [Serializable]
         public struct Data
