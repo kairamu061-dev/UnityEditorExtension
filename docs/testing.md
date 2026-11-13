@@ -41,6 +41,8 @@ MCP で回すテストは、エディタが開いていてつながっている�
 | コンパイルエラーの読み取り | **測った**: `console \| where logType == "Error"` でエラーの番号と行が取れる | `error CS0234 ... 'Json' does not exist in the namespace 'System.Text'` |
 | asmdef の規則（`project_overview.md`「リポジトリ内の配置」）が依存の書き忘れを止めるか | **測った**: 止める | `System.Text.Json` を使うと、`overrideReferences: true` では CS0234 になった。対照として `false` にすると、同じコードがコンパイルされて読み込まれた（型が見つかった） |
 | 開いているシーンが未保存のとき | **推測**（ツールの説明による）: `tests-run` は例外を出して走らない | 走らせる前に `scenes \| select name isDirty` で確かめる |
+| 埋め込みパッケージの中のテスト | **測った**: `manifest.json` に `testables` を足さなくても見つかり、走る | 2026-11-13、`com.obelune.data-viewer` の `Tests/Editor/` に置いたテスト（`overrideReferences: true`・`nunit.framework.dll`）が、`tests \| where fullName starts-with "Obelune.DataViewer"` に 1 件出て、`tests-run` で Passed |
+| 新しい埋め込みパッケージを置いたあとの取り込み | **測った**: 1 回目の `RefreshAssets()` ではパッケージは登録された（`package-list` に出た）が、60 秒待っても `.meta` ができず、コンパイルも起きなかった。2 回目の `RefreshAssets()` で取り込まれた。**推測**: 新しいパッケージの登録と、その中のファイルの取り込みが、別々の段階で起きる | 新しいパッケージを置いたときは、`.meta` ができたことを確かめるまで `RefreshAssets()` を呼び直す |
 | PlayMode テスト | 測っていない | 当面は使わない。エディタ拡張のテストは EditMode で足りる |
 
 ## エージェントが MCP 経由で回すもの（エディタが必要。CI はまだない）

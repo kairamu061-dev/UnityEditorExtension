@@ -1,0 +1,10 @@
+{
+  "name": "com.obelune.data-viewer",
+  "version": "0.0.1",
+  "displayName": "Obelune Data Viewer",
+  "description": "Browse, search and check a relational database made of C# objects (List<T> tables) in the Unity Editor.",
+  "unity": "6000.3",
+  "author": {
+    "name": "kaitramu"
+  }
+}
