@@ -43,6 +43,7 @@ MCP で回すテストは、エディタが開いていてつながっている�
 | 開いているシーンが未保存のとき | **推測**（ツールの説明による）: `tests-run` は例外を出して走らない | 走らせる前に `scenes \| select name isDirty` で確かめる |
 | 埋め込みパッケージの中のテスト | **測った**: `manifest.json` に `testables` を足さなくても見つかり、走る | 2026-11-13、`com.obelune.data-viewer` の `Tests/Editor/` に置いたテスト（`overrideReferences: true`・`nunit.framework.dll`）が、`tests \| where fullName starts-with "Obelune.DataViewer"` に 1 件出て、`tests-run` で Passed |
 | 新しい埋め込みパッケージを置いたあとの取り込み | **測った**: 1 回目の `RefreshAssets()` ではパッケージは登録された（`package-list` に出た）が、60 秒待っても `.meta` ができず、コンパイルも起きなかった。2 回目の `RefreshAssets()` で取り込まれた。**推測**: 新しいパッケージの登録と、その中のファイルの取り込みが、別々の段階で起きる | 新しいパッケージを置いたときは、`.meta` ができたことを確かめるまで `RefreshAssets()` を呼び直す |
+| EditorWindow の見た目を画像で取れるか | **測った**: 取れない。MCP の `screenshot-isolated` は GameObject を描くもの（ツールの説明）。`InternalEditorUtility.ReadScreenPixel` は OS の画面の画素を読むため、Unity が前面にないと**ほかのアプリの画面を写す**（2026-11-13 に、利用者のブラウザを写した。すぐに消した） | **`ReadScreenPixel` など、ホストの画面を読む方法は使わない。**見た目は人が確かめる（下の「実機でしか確かめられないもの」）。エージェントは、ウィンドウの状態（列の数・選択・表示の文字列）をリフレクションで読んで確かめる |
 | PlayMode テスト | 測っていない | 当面は使わない。エディタ拡張のテストは EditMode で足りる |
 
 ## エージェントが MCP 経由で回すもの（エディタが必要。CI はまだない）
