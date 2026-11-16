@@ -3,12 +3,11 @@
 ## アーキテクチャ
 
 ```
-DataViewerWindow（EditorWindow）
+DataViewerWindow（EditorWindow）… 開くとき、DataViewerSettingsWindow（settings の画面）も同じ枠の隣のタブとして開く
  ├─ TablePane      … ListView（テーブル）
  ├─ RowPane        … MultiColumnListView（itemsSource = 表示する行の番号の int[]）
  ├─ DetailPane     … ScrollView（参照先・参照元のボタン）
  ├─ ProblemPane    … ListView
- ├─ SettingsPane   … settings の画面
  └─ StatusBar
 DataViewerLoader.Changed → Database を受け取り、各ペインを作り直す
 ```
