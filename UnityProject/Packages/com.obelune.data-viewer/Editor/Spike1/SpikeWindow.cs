@@ -17,9 +17,6 @@ namespace Obelune.DataViewer.Editor.Spike1
         [SerializeField] string search = "";
         [SerializeField] bool searchLabels = true;
         [SerializeField] List<string> expandedGroups = new List<string>();   // 既定は全部畳む
-        [SerializeField] bool showSettings;
-        [SerializeField] SpikeSettingsView.Layout settingsLayout = SpikeSettingsView.Layout.ByTable;
-        [SerializeField] List<string> openSettingsTables = new List<string>();
 
         SpikeModel model;
         SpikeTable table;
@@ -36,16 +33,19 @@ namespace Obelune.DataViewer.Editor.Spike1
         Label rowCount;
         bool suppressSelection;
         bool detailWidthSet;
-        VisualElement browse;
-        SpikeSettingsView settingsView;
-        HashSet<string> openSettingsSet;
         SpikeSettings settings;
 
         static readonly Color DanglingColor = new Color(0.95f, 0.35f, 0.35f);
         static readonly Color SelectedBackground = new Color(0.24f, 0.48f, 0.90f, 0.45f);
 
         [MenuItem("Tools/Obelune/Data Viewer/Spike1/Open Window")]
-        public static void Open() => GetWindow<SpikeWindow>("Data Viewer (Spike1)");
+        public static void Open()
+        {
+            // ビューアと設定を、同じ枠の隣り合ったタブとして一緒に開く。前に出すのはビューア
+            var viewer = GetWindow<SpikeWindow>("Data Viewer (Spike1)");
+            if (!HasOpenInstances<SpikeSettingsWindow>()) SpikeSettingsWindow.Open();
+            viewer.Focus();
+        }
 
         void CreateGUI()
         {
@@ -55,11 +55,6 @@ namespace Obelune.DataViewer.Editor.Spike1
             toolbar.Add(new ToolbarButton(Reload) { text = "再読込" });
             toolbar.Add(new ToolbarButton(GoBack) { text = "◀ 戻る" });
             toolbar.Add(new ToolbarButton(GoForward) { text = "進む ▶" });
-            // 検証 2: 設定の画面をビューアの中で切り替えて出す形
-            var settingsToggle = new ToolbarToggle { text = "⚙ 設定", value = showSettings };
-            settingsToggle.RegisterValueChangedCallback(e => { showSettings = e.newValue; ShowMode(); });
-            toolbar.Add(settingsToggle);
-            toolbar.Add(new ToolbarButton(SpikeSettingsWindow.Open) { text = "設定を隣のタブで開く" });
             toolbar.Add(new ToolbarSpacer { flex = true });
             var searchField = new ToolbarSearchField { value = search, style = { width = 240 } };
             searchField.RegisterValueChangedCallback(e => { search = e.newValue ?? ""; ApplySearch(); });
@@ -110,34 +105,16 @@ namespace Obelune.DataViewer.Editor.Spike1
             inner.Add(detail);
             outer.Add(tableList);
             outer.Add(inner);
-            browse = outer;
             root.Add(outer);
-
-            openSettingsSet = new HashSet<string>(openSettingsTables);
-            settingsView = new SpikeSettingsView(settingsLayout, openSettingsSet);
-            root.Add(settingsView);
             SpikeSettings.Changed += Reload;
 
             status = new Label { style = { paddingLeft = 6, paddingTop = 2, paddingBottom = 2, borderTopWidth = 1, borderTopColor = new Color(0, 0, 0, 0.3f) } };
             root.Add(status);
 
             Reload();
-            ShowMode();
         }
 
-        void OnDisable()
-        {
-            SpikeSettings.Changed -= Reload;
-            if (settingsView != null) settingsLayout = settingsView.CurrentLayout;
-            if (openSettingsSet != null) openSettingsTables = new List<string>(openSettingsSet);
-        }
-
-        void ShowMode()
-        {
-            browse.style.display = showSettings ? DisplayStyle.None : DisplayStyle.Flex;
-            settingsView.style.display = showSettings ? DisplayStyle.Flex : DisplayStyle.None;
-            if (showSettings) settingsView.Rebuild(settings, model);
-        }
+        void OnDisable() => SpikeSettings.Changed -= Reload;
 
         void Reload()
         {
@@ -155,7 +132,6 @@ namespace Obelune.DataViewer.Editor.Spike1
             table = null;   // 読み直したので、列も作り直す
             var path = model.Find(tablePath) != null ? tablePath : model.Tables.FirstOrDefault()?.Path;
             if (path != null) SelectTable(path, selectedRow, record: false);
-            if (showSettings) settingsView.Rebuild(settings, model);
         }
 
         // ---- テーブルの一覧（グループごとに畳める） ----

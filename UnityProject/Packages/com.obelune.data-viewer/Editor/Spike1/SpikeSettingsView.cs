@@ -8,29 +8,23 @@ using UnityEngine.UIElements;
 
 namespace Obelune.DataViewer.Editor.Spike1
 {
-    // 検証 2: 設定の画面（docs/data-viewer/tasks.md）。ビューアの中と、別のウィンドウの両方に置く。検証が終わったら捨てる
+    // 検証 2: 設定の画面（docs/data-viewer/tasks.md）。ビューアの隣のタブ（SpikeSettingsWindow）に置く。検証が終わったら捨てる
     public sealed class SpikeSettingsView : VisualElement
     {
         const string None = "（なし）";
 
-        public enum Layout { ByTable, List }
-
         SpikeSettings settings;
         SpikeModel model;
-        Layout refLayout;
         readonly ScrollView scroll;
         readonly HashSet<string> openTables;   // 開いているテーブルのパス（作り直しても保つ）
 
-        public SpikeSettingsView(Layout initialLayout, HashSet<string> openTables)
+        public SpikeSettingsView(HashSet<string> openTables)
         {
-            refLayout = initialLayout;
             this.openTables = openTables;
             style.flexGrow = 1;
             scroll = new ScrollView { style = { flexGrow = 1, paddingLeft = 8, paddingRight = 8, paddingTop = 6 } };
             Add(scroll);
         }
-
-        public Layout CurrentLayout => refLayout;
 
         // 設定とデータから画面を作り直す。スクロールの位置は保つ
         public void Rebuild(SpikeSettings settings, SpikeModel model)
@@ -44,12 +38,7 @@ namespace Obelune.DataViewer.Editor.Spike1
             BuildMismatches();
             BuildAnnotationSets();
 
-            var tabs = new RadioButtonGroup("参照の設定の形", new List<string> { "テーブルごと", "一覧" }) { value = (int)refLayout, style = { marginTop = 10, marginBottom = 4 } };
-            tabs.RegisterValueChangedCallback(e => { refLayout = (Layout)e.newValue; Rebuild(this.settings, this.model); });
-            scroll.Add(tabs);
-
-            if (refLayout == Layout.ByTable) BuildByTable();
-            else BuildList();
+            BuildByTable();
 
             scroll.schedule.Execute(() => scroll.scrollOffset = offset);
         }
@@ -313,142 +302,6 @@ namespace Obelune.DataViewer.Editor.Spike1
                 fold.Add(row);
             }
             return fold;
-        }
-
-        // ---- 参照の設定: 一覧 ----
-
-        void BuildList()
-        {
-            if (model == null || model.Tables.Count == 0) { scroll.Add(Muted("テーブルがない（ソースを選んでください）")); return; }
-            string TableName(string path) => model.Find(path)?.Name ?? path;
-
-            scroll.Add(Muted("主キー"));
-            foreach (var t in model.Tables)
-            {
-                var table = t;
-                var row = Row();
-                row.Add(new Label(table.Name) { style = { width = 170 } });
-                var pk = settings.primaryKeys.FirstOrDefault(p => p.table == table.Path);
-                var choices = new[] { None }.Concat(table.Columns.Where(c => c.IsKeyCandidate).Select(c => c.Name)).ToList();
-                var f = new PopupField<string>(choices, pk != null && choices.Contains(pk.column) ? pk.column : None) { style = { width = 160 } };
-                f.RegisterValueChangedCallback(e =>
-                {
-                    settings.primaryKeys.RemoveAll(p => p.table == table.Path);
-                    if (e.newValue != None) settings.primaryKeys.Add(new PrimaryKeySetting { table = table.Path, column = e.newValue });
-                    Save();
-                });
-                row.Add(f);
-                scroll.Add(row);
-            }
-
-            scroll.Add(Heading($"参照（{settings.references.Count}）"));
-            foreach (var r in settings.references)
-            {
-                var rs = r;
-                var row = Row();
-                row.Add(new Label($"{TableName(rs.table)}.{rs.column}  →  {TableName(rs.target)}") { style = { width = 340 } });
-                row.Add(Muted("参照なしの値", 80));
-                var nullField = new TextField { value = rs.hasNullValue ? rs.nullValue : "", isDelayed = true, style = { width = 70 } };
-                nullField.RegisterValueChangedCallback(e => { rs.hasNullValue = !string.IsNullOrEmpty(e.newValue); rs.nullValue = e.newValue ?? ""; Save(); });
-                row.Add(nullField);
-                row.Add(new Button(() => { settings.references.Remove(rs); Save(); }) { text = "×" });
-                scroll.Add(row);
-            }
-
-            // 足す行: 参照元のテーブル → 列 → 参照先
-            var add = Row();
-            add.style.marginTop = 6;
-            var tableChoices = model.Tables.Select(t => t.Path).ToList();
-            var fromTable = new PopupField<string>(tableChoices, 0, TableName, TableName) { style = { width = 150 } };
-            var fromColumn = new PopupField<string>(new List<string> { None }, 0) { style = { width = 150 } };
-            var toTable = new PopupField<string>(new List<string> { None }, 0, p => p == None ? None : TableName(p), p => p == None ? None : TableName(p)) { style = { width = 150 } };
-
-            void RefreshColumns()
-            {
-                var t = model.Find(fromTable.value);
-                var cols = t.Columns.Where(c => c.IsKeyCandidate && !(t.PrimaryKey >= 0 && t.Columns[t.PrimaryKey] == c)
-                                                && settings.references.All(r => !(r.table == t.Path && r.column == c.Name))).Select(c => c.Name).ToList();
-                fromColumn.choices = cols.Count > 0 ? cols : new List<string> { None };
-                fromColumn.index = 0;
-                RefreshTargets();
-            }
-            void RefreshTargets()
-            {
-                var t = model.Find(fromTable.value);
-                var c = t.Columns.FirstOrDefault(x => x.Name == fromColumn.value);
-                var targets = c == null ? new List<string>() : model.Tables.Where(x => x != t && x.PrimaryKey >= 0 && x.Columns[x.PrimaryKey].IsInteger == c.IsInteger).Select(x => x.Path).ToList();
-                toTable.choices = targets.Count > 0 ? targets : new List<string> { None };
-                toTable.index = 0;
-            }
-            fromTable.RegisterValueChangedCallback(_ => RefreshColumns());
-            fromColumn.RegisterValueChangedCallback(_ => RefreshTargets());
-            RefreshColumns();
-
-            add.Add(fromTable);
-            add.Add(new Label(".") { style = { unityTextAlign = TextAnchor.MiddleCenter } });
-            add.Add(fromColumn);
-            add.Add(new Label(" → ") { style = { unityTextAlign = TextAnchor.MiddleCenter } });
-            add.Add(toTable);
-            add.Add(new Button(() =>
-            {
-                if (fromColumn.value == None || toTable.value == None) return;
-                var c = model.Find(fromTable.value).Columns.First(x => x.Name == fromColumn.value);
-                settings.references.Add(new ReferenceSetting
-                {
-                    table = fromTable.value, column = fromColumn.value, target = toTable.value,
-                    hasNullValue = c.IsInteger, nullValue = c.IsInteger ? "0" : "",
-                });
-                Save();
-            }) { text = "+ 足す" });
-            scroll.Add(add);
-            BuildBindingList(TableName);
-        }
-
-        // 名前の結び付けの一覧（一覧の形）。主キーに結び付けると、その主キーを指す参照の列にも出る
-        void BuildBindingList(Func<string, string> tableName)
-        {
-            const string KeyColumn = "（主キー）";
-            scroll.Add(Heading($"名前の結び付け（{settings.annotationBindings.Count}）"));
-            foreach (var b in settings.annotationBindings)
-            {
-                var binding = b;
-                var row = Row();
-                var where = string.IsNullOrEmpty(binding.column) ? $"{tableName(binding.table)} の主キー（参照の列にも出る）" : $"{tableName(binding.table)}.{binding.column}";
-                row.Add(new Label($"{binding.set}  →  {where}") { style = { width = 420 } });
-                row.Add(new Button(() => { settings.annotationBindings.Remove(binding); Save(); }) { text = "×" });
-                scroll.Add(row);
-            }
-            if (settings.annotationSets.Count == 0) { scroll.Add(Muted("先に「名前の集まり」を足してください")); return; }
-
-            var add = Row();
-            add.style.marginTop = 6;
-            var setField = new PopupField<string>(settings.annotationSets.Select(s => s.name).ToList(), 0) { style = { width = 150 } };
-            var tableField = new PopupField<string>(model.Tables.Select(t => t.Path).ToList(), 0, p => tableName(p), p => tableName(p)) { style = { width = 150 } };
-            var columnField = new PopupField<string>(new List<string> { KeyColumn }, 0) { style = { width = 150 } };
-            void RefreshColumns()
-            {
-                var t = model.Find(tableField.value);
-                var cols = new List<string>();
-                if (t.PrimaryKey >= 0) cols.Add(KeyColumn);
-                cols.AddRange(t.Columns.Where(c => !(t.PrimaryKey >= 0 && t.Columns[t.PrimaryKey] == c)).Select(c => c.Name));
-                columnField.choices = cols;
-                columnField.index = 0;
-            }
-            tableField.RegisterValueChangedCallback(_ => RefreshColumns());
-            RefreshColumns();
-            add.Add(setField);
-            add.Add(new Label(" → ") { style = { unityTextAlign = TextAnchor.MiddleCenter } });
-            add.Add(tableField);
-            add.Add(new Label(".") { style = { unityTextAlign = TextAnchor.MiddleCenter } });
-            add.Add(columnField);
-            add.Add(new Button(() =>
-            {
-                var column = columnField.value == KeyColumn ? "" : columnField.value;
-                settings.annotationBindings.RemoveAll(x => x.table == tableField.value && x.column == column);
-                settings.annotationBindings.Add(new AnnotationBinding { set = setField.value, table = tableField.value, column = column });
-                Save();
-            }) { text = "+ 足す" });
-            scroll.Add(add);
         }
     }
 }
