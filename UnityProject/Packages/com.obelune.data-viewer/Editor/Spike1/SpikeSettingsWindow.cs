@@ -13,8 +13,9 @@ namespace Obelune.DataViewer.Editor.Spike1
         SpikeSettingsView view;
         HashSet<string> openSet;
 
-        [MenuItem("Tools/Obelune/Data Viewer/Spike1/Open Settings Window")]
-        public static void Open() => GetWindow<SpikeSettingsWindow>("Data Viewer 設定 (Spike2)");
+        [MenuItem("Tools/Obelune/Data Viewer/Spike1/Open Settings Tab")]
+        // ビューアのウィンドウがあれば、その隣のタブとして開く（Unity のドッキングのタブ）
+        public static void Open() => GetWindow<SpikeSettingsWindow>("Data Viewer 設定 (Spike2)", true, typeof(SpikeWindow));
 
         void CreateGUI()
         {

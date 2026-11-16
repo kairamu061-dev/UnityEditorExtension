@@ -59,7 +59,7 @@ namespace Obelune.DataViewer.Editor.Spike1
             var settingsToggle = new ToolbarToggle { text = "⚙ 設定", value = showSettings };
             settingsToggle.RegisterValueChangedCallback(e => { showSettings = e.newValue; ShowMode(); });
             toolbar.Add(settingsToggle);
-            toolbar.Add(new ToolbarButton(SpikeSettingsWindow.Open) { text = "設定を別のウィンドウで開く" });
+            toolbar.Add(new ToolbarButton(SpikeSettingsWindow.Open) { text = "設定を隣のタブで開く" });
             toolbar.Add(new ToolbarSpacer { flex = true });
             var searchField = new ToolbarSearchField { value = search, style = { width = 240 } };
             searchField.RegisterValueChangedCallback(e => { search = e.newValue ?? ""; ApplySearch(); });

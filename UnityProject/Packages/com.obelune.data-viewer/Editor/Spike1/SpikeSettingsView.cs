@@ -401,7 +401,54 @@ namespace Obelune.DataViewer.Editor.Spike1
                 Save();
             }) { text = "+ 足す" });
             scroll.Add(add);
-            scroll.Add(Muted("名前の結び付けは「テーブルごと」の画面で設定する（この検証では一覧の形は参照だけ）"));
+            BuildBindingList(TableName);
+        }
+
+        // 名前の結び付けの一覧（一覧の形）。主キーに結び付けると、その主キーを指す参照の列にも出る
+        void BuildBindingList(Func<string, string> tableName)
+        {
+            const string KeyColumn = "（主キー）";
+            scroll.Add(Heading($"名前の結び付け（{settings.annotationBindings.Count}）"));
+            foreach (var b in settings.annotationBindings)
+            {
+                var binding = b;
+                var row = Row();
+                var where = string.IsNullOrEmpty(binding.column) ? $"{tableName(binding.table)} の主キー（参照の列にも出る）" : $"{tableName(binding.table)}.{binding.column}";
+                row.Add(new Label($"{binding.set}  →  {where}") { style = { width = 420 } });
+                row.Add(new Button(() => { settings.annotationBindings.Remove(binding); Save(); }) { text = "×" });
+                scroll.Add(row);
+            }
+            if (settings.annotationSets.Count == 0) { scroll.Add(Muted("先に「名前の集まり」を足してください")); return; }
+
+            var add = Row();
+            add.style.marginTop = 6;
+            var setField = new PopupField<string>(settings.annotationSets.Select(s => s.name).ToList(), 0) { style = { width = 150 } };
+            var tableField = new PopupField<string>(model.Tables.Select(t => t.Path).ToList(), 0, p => tableName(p), p => tableName(p)) { style = { width = 150 } };
+            var columnField = new PopupField<string>(new List<string> { KeyColumn }, 0) { style = { width = 150 } };
+            void RefreshColumns()
+            {
+                var t = model.Find(tableField.value);
+                var cols = new List<string>();
+                if (t.PrimaryKey >= 0) cols.Add(KeyColumn);
+                cols.AddRange(t.Columns.Where(c => !(t.PrimaryKey >= 0 && t.Columns[t.PrimaryKey] == c)).Select(c => c.Name));
+                columnField.choices = cols;
+                columnField.index = 0;
+            }
+            tableField.RegisterValueChangedCallback(_ => RefreshColumns());
+            RefreshColumns();
+            add.Add(setField);
+            add.Add(new Label(" → ") { style = { unityTextAlign = TextAnchor.MiddleCenter } });
+            add.Add(tableField);
+            add.Add(new Label(".") { style = { unityTextAlign = TextAnchor.MiddleCenter } });
+            add.Add(columnField);
+            add.Add(new Button(() =>
+            {
+                var column = columnField.value == KeyColumn ? "" : columnField.value;
+                settings.annotationBindings.RemoveAll(x => x.table == tableField.value && x.column == column);
+                settings.annotationBindings.Add(new AnnotationBinding { set = setField.value, table = tableField.value, column = column });
+                Save();
+            }) { text = "+ 足す" });
+            scroll.Add(add);
         }
     }
 }
