@@ -31,7 +31,7 @@ namespace Obelune.DataViewer.Editor.Spike1
             var sw = System.Diagnostics.Stopwatch.StartNew();
             var root = UnityEditor.AssetDatabase.LoadMainAssetAtPath(settings.assetPath);
             m.LoadAssetMs = sw.Elapsed.TotalMilliseconds;
-            if (root == null) { m.Problems.Add($"アセットがない: {settings.assetPath}"); return m; }
+            if (root == null) { m.Problems.Add(string.IsNullOrEmpty(settings.assetPath) ? "ソースのアセットが未設定" : $"アセットがない: {settings.assetPath}"); return m; }
 
             sw.Restart();
             var visited = new HashSet<object>(ReferenceEqualityComparer.Instance);
@@ -177,6 +177,12 @@ namespace Obelune.DataViewer.Editor.Spike1
                 var target = Find(rs.target);
                 if (t == null || ci < 0 || target == null || target.PrimaryKey < 0) { Problems.Add($"参照の設定の先がない: {rs.table}.{rs.column} → {rs.target}"); continue; }
                 var col = t.Columns[ci];
+                var targetKey = target.Columns[target.PrimaryKey];
+                if (col.IsInteger != targetKey.IsInteger)
+                {
+                    Problems.Add($"参照の型の種類が合わない: {t.Name}.{col.Name}（{col.TypeName}）→ {target.Name}.{targetKey.Name}（{targetKey.TypeName}）");
+                    continue;
+                }
                 var ti = Tables.IndexOf(target);
                 var tableIndex = Tables.IndexOf(t);
                 col.RefTarget = ti;
@@ -280,6 +286,9 @@ namespace Obelune.DataViewer.Editor.Spike1
             label = a.label; note = a.note;
             return true;
         }
+
+        // 主キーにできる列（整数・enum・string）
+        public bool IsKeyCandidate => IsInteger || Type == typeof(string);
 
         public string TypeName => Type.IsEnum ? Type.Name : Type == typeof(int) ? "int" : Type == typeof(float) ? "float" : Type == typeof(string) ? "string" : Type.Name;
     }
